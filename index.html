@@ -1,4 +1,3 @@
- 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,4 +66,55 @@
     <button id="menuFromVBtn" class="ghost-btn wide-btn">MAIN MENU</button>
   </div>
 </div>
+ <!-- Game Root -->
+<div id="gameRoot" class="hidden">
  
+  <canvas id="viewCanvas"></canvas>
+  <div id="vignette"></div>
+  <div id="scanlines"></div>
+  <div id="flashOverlay"></div>
+ 
+  <!-- HUD -->
+  <div id="hud">
+    <div id="healthPanel" class="hud-panel">
+      <div class="hud-label">VITALS</div>
+      <div class="bar-track"><div id="healthFill" class="bar-fill"></div></div>
+      <div id="healthNum" class="hud-mini">100</div>
+    </div>
+ 
+    <div id="centerPanel" class="hud-panel">
+      <div id="levelLabel" class="hud-label lg">LEVEL 1</div>
+      <div id="compassStrip"><div id="compassTrack"></div><div class="compass-marker"></div></div>
+    </div>
+ 
+    <div id="radarPanel" class="hud-panel">
+      <canvas id="radarCanvas" width="140" height="140"></canvas>
+      <div id="scoreTag">SCORE <span id="scoreNum">0</span></div>
+    </div>
+ 
+    <button id="pauseBtn" aria-label="Pause">II</button>
+ 
+    <div id="crosshair"><span></span><span></span></div>
+    <div id="hitMarker"></div>
+    <div id="damageDirIndicator"></div>
+    <div id="objectiveToast"></div>
+  </div>
+ 
+  <!-- Touch Controls -->
+  <div id="touchLayer">
+    <div id="moveZone" class="joy-zone">
+      <div class="joy-base"><div class="joy-stick" id="moveStick"></div></div>
+    </div>
+    <div id="lookZone" class="joy-zone">
+      <div class="joy-base"><div class="joy-stick" id="lookStick"></div></div>
+    </div>
+    <button id="runBtn" class="action-btn small-btn">RUN</button>
+    <button id="jumpBtn" class="action-btn small-btn">JUMP</button>
+    <button id="fireBtn" class="glass-btn fire-btn">FIRE</button>
+  </div>
+ 
+</div>
+ 
+<script src="game.js"></script>
+</body>
+</html>
