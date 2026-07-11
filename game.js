@@ -10,7 +10,8 @@ const CONFIG = {
   moveSpeed: 2.2,
   runMultiplier: 1.6,
   turnSpeed: 2.2,
-  mouseSensitivity: 0.0022,
+  mouseSensitivity: 0.0032,
+  mousePitchSensitivity: 0.16,
   playerRadius: 0.28,
   maxHealth: 100,
   fireDamageMin: 20,
@@ -76,7 +77,7 @@ class MazeGenerator {
     return this.grid[this.idx(x, y)];
   }
   set(x, y, v) { this.grid[this.idx(x, y)] = v; }
-  
+
   _carve() {
     const stack = [[1, 1]];
     this.set(1, 1, 0);
@@ -430,15 +431,16 @@ class Game {
     this.kills = 0;
     this.startTime = 0;
     this.isFiring = false;
-    
+
     this.keys = {};
     this.mobileLookOffset = { angle: 0, pitch: 0 };
 
     this._bindPlatformPopup();
     this._bindDom();
     this._bindInput();
+    this._bindPointerLockUI();
     this._resize();
-    
+
     window.addEventListener('resize', () => this._resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this._resize(), 200));
 
@@ -455,22 +457,22 @@ class Game {
   _setPlatform(mode) {
     this.platformMode = mode;
     document.getElementById('platformPopup').classList.add('hidden');
-    
+
     const instr = document.getElementById('controlInstructions');
     const touchLayer = document.getElementById('touchLayer');
-    
+
     if (mode === 'pc') {
-      instr.innerHTML = "PC PROTOCOL :: MOVE via Arrow/WASDKeys &middot; AIM via Mouse Motion &middot; DISCHARGE via F Key";
+      instr.innerHTML = "PC PROTOCOL :: MOVE via Arrow/WASD Keys &middot; AIM via Mouse Motion &middot; DISCHARGE via F Key";
       touchLayer.classList.add('hidden');
       this.canvas.addEventListener('click', () => {
-        if (this.state === 'playing') this.canvas.requestPointerLock();
+        if (this.state === 'playing' && document.pointerLockElement !== this.canvas) this.canvas.requestPointerLock();
       });
     } else {
       instr.innerHTML = "MOBILE PROTOCOL :: MOVE via Left Joystick &middot; DRAG Screen to Pan View &middot; AUTOMATIC Combat Systems Engaged";
       touchLayer.classList.remove('hidden');
       this._initDeviceMotion();
     }
-    
+
     this.state = 'menu';
     this._showScreen('menu');
   }
@@ -485,7 +487,7 @@ class Game {
     } else {
       window.addEventListener('deviceorientation', (e) => this._handleMotion(e));
     }
-    
+
     // Canvas touch sweep look mechanics for fallback mobile setups
     let startX = 0, startY = 0;
     this.canvas.addEventListener('touchstart', (e) => {
@@ -531,6 +533,7 @@ class Game {
       hitMarker: document.getElementById('hitMarker'),
       damageDir: document.getElementById('damageDirIndicator'),
       flashOverlay: document.getElementById('flashOverlay'),
+      lockLostPrompt: document.getElementById('lockLostPrompt'),
       goLevel: document.getElementById('goLevel'),
       goKills: document.getElementById('goKills'),
       goTime: document.getElementById('goTime'),
@@ -594,11 +597,13 @@ class Game {
       if (e.key.toLowerCase() === 'f') this.isFiring = false;
     });
 
-    // PC Mouse Move Listeners
+    // PC Mouse Look Listener -- uses movementX/Y (relative delta) rather than
+    // absolute clientX/Y, since with the pointer locked the cursor position
+    // itself is meaningless; only frame-to-frame movement matters.
     document.addEventListener('mousemove', (e) => {
       if (this.state === 'playing' && this.platformMode === 'pc' && document.pointerLockElement === this.canvas) {
-        this.player.angle = normalizeAngle(this.player.angle + e.clientX * CONFIG.mouseSensitivity * 0.05);
-        this.player.pitch = clamp(this.player.pitch - e.clientY * 0.4, -55, 55);
+        this.player.angle = normalizeAngle(this.player.angle + e.movementX * CONFIG.mouseSensitivity * 20);
+        this.player.pitch = clamp(this.player.pitch - e.movementY * CONFIG.mousePitchSensitivity, -55, 55);
       }
     });
 
@@ -606,12 +611,28 @@ class Game {
     const runBtn = document.getElementById('runBtn');
     runBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); this._isRunHeld = true; });
     runBtn.addEventListener('pointerup', () => { this._isRunHeld = false; });
-    
+
     document.getElementById('jumpBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); this._triggerJumpBob(); });
 
     const fireBtn = document.getElementById('fireBtn');
     fireBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); this.isFiring = true; this._tryFire(); });
     fireBtn.addEventListener('pointerup', () => { this.isFiring = false; });
+  }
+
+  _bindPointerLockUI() {
+    // Shows a "click to resume" prompt whenever the pointer lock is lost
+    // mid-game (Esc key, tab switch, etc.) so PC aiming never silently breaks.
+    const prompt = document.getElementById('lockLostPrompt');
+    const evaluate = () => {
+      if (this.platformMode !== 'pc') { prompt.classList.add('hidden'); return; }
+      const locked = document.pointerLockElement === this.canvas;
+      prompt.classList.toggle('hidden', locked || this.state !== 'playing');
+    };
+    document.addEventListener('pointerlockchange', evaluate);
+    prompt.addEventListener('click', () => {
+      if (this.state === 'playing' && this.platformMode === 'pc') this.canvas.requestPointerLock();
+    });
+    this._evaluateLockPrompt = evaluate;
   }
 
   _triggerJumpBob() { if (!this._jumpBobTimer) this._jumpBobTimer = 0.001; }
@@ -623,11 +644,16 @@ class Game {
     this.el.gameOver.classList.toggle('hidden', name !== 'gameover');
     this.el.victory.classList.toggle('hidden', name !== 'victory');
     this.el.root.classList.toggle('hidden', name !== 'playing');
+    if (this._evaluateLockPrompt) this._evaluateLockPrompt();
   }
 
-  _toMenu() { this.state = 'menu'; this._newSeedForMenu(); this._showScreen('menu'); }
-  _pause() { if (this.state !== 'playing') return; this.state = 'paused'; this._showScreen('pause'); }
-  _resumeGame() { if (this.state !== 'paused') return; this.state = 'playing'; this._lastTime = performance.now(); this._showScreen('playing'); }
+  _toMenu() { this.state = 'menu'; document.exitPointerLock?.(); this._newSeedForMenu(); this._showScreen('menu'); }
+  _pause() { if (this.state !== 'playing') return; this.state = 'paused'; document.exitPointerLock?.(); this._showScreen('pause'); }
+  _resumeGame() {
+    if (this.state !== 'paused') return;
+    this.state = 'playing'; this._lastTime = performance.now(); this._showScreen('playing');
+    if (this.platformMode === 'pc') this.canvas.requestPointerLock();
+  }
 
   _startNewGame(seed) {
     this.seedNumeric = seed !== undefined ? seed : this._pendingSeed;
@@ -668,7 +694,7 @@ class Game {
 
   _gameOver() { this.state = 'gameover'; this.audio.playGameOver(); document.exitPointerLock?.(); this._fillEndMetrics(this.el.goLevel, this.el.goKills, this.el.goTime, this.el.goScore); this._showScreen('gameover'); }
   _victory() { this.state = 'victory'; this.audio.playVictory(); document.exitPointerLock?.(); this._fillEndMetrics(null, this.el.vKills, this.el.vTime, this.el.vScore); this._showScreen('victory'); }
-  
+
   _fillEndMetrics(lvlEl, kEl, tEl, sEl) {
     const elapsed = (performance.now() - this.startTime) / 1000;
     if (lvlEl) lvlEl.textContent = String(this.levelIndex + 1);
@@ -753,7 +779,7 @@ class Game {
         const dist = Math.hypot(en.x - p.x, en.y - p.y);
         if (dist < 8 && this.maze.hasLineOfSight(p.x, p.y, en.x, en.y)) {
           let targetAngle = Math.atan2(en.y - p.y, en.x - p.x);
-          p.angle = lerp(p.angle, targetAngle, 0.08); // Automatic magnetic tracking tracking lock
+          p.angle = lerp(p.angle, targetAngle, 0.08); // Automatic magnetic tracking lock
           enemyAimed = true;
           break;
         }
@@ -781,7 +807,7 @@ class Game {
     const currentSpeed = CONFIG.moveSpeed * (this._isRunning ? CONFIG.runMultiplier : 1);
     const dx = (Math.cos(p.angle) * moveY + Math.cos(p.angle + Math.PI / 2) * moveX) * currentSpeed * dt;
     const dy = (Math.sin(p.angle) * moveY + Math.sin(p.angle + Math.PI / 2) * moveX) * currentSpeed * dt;
-    
+
     p.isMoving = Math.hypot(dx, dy) > 0.001;
     this._tryMoveEntity(p, dx, dy, CONFIG.playerRadius);
 
@@ -798,8 +824,17 @@ class Game {
     this.tracers.forEach(tr => tr.life -= dt);
     this.tracers = this.tracers.filter(tr => tr.life > 0);
 
+    if (this._jumpBobTimer) {
+      this._jumpBobTimer += dt;
+      if (this._jumpBobTimer > 0.4) this._jumpBobTimer = 0;
+    }
+
     // Enemy state processors
     for (const en of this.enemies) this._updateEnemy(en, dt);
+    this.enemies = this.enemies.filter(en => !en.removed);
+
+    const distToExit = Math.hypot(p.x - this.exitPos.x, p.y - this.exitPos.y);
+    if (distToExit < 0.6) this._reachExit();
 
     if (p.health <= 0) this._gameOver();
   }
@@ -829,17 +864,22 @@ class Game {
       }
       en.state = 'chase'; en.lastKnownPlayer = { x: this.player.x, y: this.player.y };
       en.searchTimer = this.levelCfg.searchPersistence;
+    } else if (en.state === 'chase') {
+      en.searchTimer -= dt;
+      if (en.searchTimer <= 0) en.state = 'patrol';
     }
 
     if (en.state === 'chase') {
       en.repathTimer -= dt;
       if (en.repathTimer <= 0) {
         en.repathTimer = CONFIG.enemyRepathInterval;
-        en.path = this.maze.bfsPath(Math.floor(en.x), Math.floor(en.y), Math.floor(this.player.x), Math.floor(this.player.y));
+        const targetX = en.lastKnownPlayer ? en.lastKnownPlayer.x : this.player.x;
+        const targetY = en.lastKnownPlayer ? en.lastKnownPlayer.y : this.player.y;
+        en.path = this.maze.bfsPath(Math.floor(en.x), Math.floor(en.y), Math.floor(targetX), Math.floor(targetY));
         en.pathIndex = 0;
       }
       this._followPath(en, dt);
-      
+
       if (dist <= CONFIG.enemyAttackRange && en.attackCooldown <= 0) {
         this.player.health -= CONFIG.enemyContactDamage;
         en.attackCooldown = CONFIG.enemyAttackCooldown;
@@ -901,7 +941,7 @@ class Game {
 
         // Dynamic High-Contrast Shadow Ambience Falloff
         let ambience = Math.max(0, 1 - (corrDist / this.levelCfg.viewDist));
-        
+
         // Custom Code Overhead Fixture Light Calculations
         let lightCenterDistance = Math.abs(ray.wallX - 0.5);
         let lightConeEffect = Math.max(0, 1 - (lightCenterDistance * 2.5)) * 0.35;
@@ -911,7 +951,7 @@ class Game {
         let r = Math.floor(18 * finalBrightness);
         let g = Math.floor(12 * finalBrightness);
         let b = Math.floor(8 * finalBrightness);
-        
+
         // Structural lines overlay
         if (ray.wallX < 0.03 || ray.wallX > 0.97) { r += 15; g += 5; }
 
@@ -931,7 +971,7 @@ class Game {
     // 2. Procedural Furniture & Structural Props Layer Projection
     this._renderStructuralProps(w, h, horizon);
 
-    // 3. Cybernetic Dark Villain Structural Bezier Engine 
+    // 3. Cybernetic Dark Villain Structural Bezier Engine
     this._renderDarkVillains(w, h, horizon);
 
     // 4. Combat Overlay Gun Systems Drawing Layout
@@ -968,7 +1008,7 @@ class Game {
       let leftX = Math.round(spriteX - propSize / 2);
 
       let light = Math.max(0, 1 - (it.dist / this.levelCfg.viewDist));
-      
+
       for (let sx = 0; sx < propSize; sx++) {
         let screenX = leftX + sx;
         if (screenX >= 0 && screenX < w && this.zbuffer[screenX] > it.dist) {
@@ -1008,7 +1048,7 @@ class Game {
       let spriteX = (w / 2) + (Math.tan(en.diff) * (w / CONFIG.fov));
       let eSize = Math.round((h / en.dist) * 1.2);
       let eTop = horizon - eSize / 2 + Math.sin(en.bobPhase) * 10;
-      
+
       let scale = eSize / 250;
       let light = Math.max(0, 1 - (en.dist / this.levelCfg.viewDist));
 
@@ -1018,9 +1058,6 @@ class Game {
 
       for (let sx = startX; sx < endX; sx++) {
         if (sx >= 0 && sx < w && this.zbuffer[sx] > en.dist) {
-          // Direct canvas slice drawer framework injection mapping
-          let slicePct = (sx - startX) / eSize;
-          
           this.ctx.save();
           this.ctx.beginPath();
           this.ctx.rect(sx, eTop, 1, eSize);
@@ -1029,23 +1066,23 @@ class Game {
           if (!en.alive) {
             // Death state pools collapse
             this.ctx.fillStyle = '#1a0202';
-            this.ctx.fillRect(spriteX - eSize/2, eTop + eSize*0.6, eSize, eSize*0.4);
+            this.ctx.fillRect(spriteX - eSize / 2, eTop + eSize * 0.6, eSize, eSize * 0.4);
             this.ctx.restore();
-            return;
+            continue;
           }
 
-          // Custom code-based procedural generation drawing matching your image criteria exactly
-          // Dark bio-mechanical segmented plates, curved horns, absolute dark tones & glowing mono eye core
+          // Custom code-based procedural generation drawing:
+          // dark bio-mechanical segmented plates, curved horns, absolute dark tones & glowing mono eye core
           this.ctx.translate(spriteX, eTop + eSize / 2);
           this.ctx.scale(scale, scale);
 
-          // Sub-Layer Shadow Buffer Depth base
+          // Sub-layer shadow buffer depth base
           this.ctx.fillStyle = `rgba(5, 2, 2, ${light})`;
           this.ctx.beginPath();
           this.ctx.arc(0, -20, 65, 0, Math.PI * 2);
           this.ctx.fill();
 
-          // Outward Sweeping Heavy Curved Spikes / Berserker Armor Horns
+          // Outward sweeping heavy curved spikes / berserker armor horns
           this.ctx.fillStyle = `rgb(${Math.floor(10 * light)}, 1, 1)`;
           this.ctx.beginPath();
           this.ctx.moveTo(-45, -70);
@@ -1059,7 +1096,7 @@ class Game {
           this.ctx.quadraticCurveTo(75, -50, 45, -40);
           this.ctx.fill();
 
-          // Angular Jagged Segmented Core Torso Chassis
+          // Angular jagged segmented core torso chassis
           this.ctx.fillStyle = `rgb(${Math.floor(16 * light)}, 3, 3)`;
           this.ctx.beginPath();
           this.ctx.moveTo(-55, -40);
@@ -1069,16 +1106,16 @@ class Game {
           this.ctx.closePath();
           this.ctx.fill();
 
-          // Bio-Mechanical Rib Plates Interlaced Rib Lines
+          // Bio-mechanical rib plates interlaced rib lines
           this.ctx.strokeStyle = `rgb(${Math.floor(45 * light)}, 5, 5)`;
           this.ctx.lineWidth = 4;
-          for(let i = -20; i <= 40; i += 15) {
+          for (let i = -20; i <= 40; i += 15) {
             this.ctx.beginPath();
             this.ctx.moveTo(-45, i); this.ctx.lineTo(45, i);
             this.ctx.stroke();
           }
 
-          // Dense Hardened Skull Helmet Overlay
+          // Dense hardened skull helmet overlay
           this.ctx.fillStyle = `rgb(${Math.floor(8 * light)}, 0, 0)`;
           this.ctx.beginPath();
           this.ctx.moveTo(-35, -50);
@@ -1089,7 +1126,7 @@ class Game {
           this.ctx.closePath();
           this.ctx.fill();
 
-          // Crimson Central Gaze Monochromatic Eye Core
+          // Crimson central gaze monochromatic eye core
           let flickerIntensity = 0.7 + Math.random() * 0.3;
           this.ctx.fillStyle = `rgba(255, 10, 10, ${light * flickerIntensity})`;
           this.ctx.shadowBlur = 25;
@@ -1098,7 +1135,7 @@ class Game {
           this.ctx.arc(0, -80, 11, 0, Math.PI * 2);
           this.ctx.fill();
 
-          // Hitmarker strobe flashes overlay processing
+          // Hit-marker strobe flash overlay
           if (en.hitFlash > 0) {
             this.ctx.fillStyle = `rgba(255, 255, 255, ${en.hitFlash * 6})`;
             this.ctx.fillRect(-100, -150, 200, 300);
@@ -1117,11 +1154,11 @@ class Game {
     let wy = h * 0.72 + Math.abs(bobY) * h * 0.6 + rec;
 
     this.ctx.save();
-    // Heavy Anti-Anomaly Industrial Kinetic Cannon Blueprint Structure
+    // Heavy anti-anomaly industrial kinetic cannon blueprint structure
     this.ctx.fillStyle = '#080605';
     this.ctx.fillRect(wx, wy, w * 0.16, h * 0.4);
-    
-    // Core Weapon Shroud Rails
+
+    // Core weapon shroud rails
     this.ctx.fillStyle = '#1c1613';
     this.ctx.fillRect(wx - 4, wy + 20, w * 0.2, h * 0.12);
 
@@ -1140,19 +1177,19 @@ class Game {
     this.el.healthFill.style.width = Math.max(0, this.player.health) + '%';
     this.el.scoreNum.textContent = String(this.score);
 
-    // Compass Engine Slider Processing Track
+    // Compass engine slider processing track
     let angleDeg = (this.player.angle * 180 / Math.PI) % 360;
     if (angleDeg < 0) angleDeg += 360;
     let offset = -(angleDeg * this.pxPerDeg) - (360 * this.pxPerDeg);
-    this.el.compassTrack.style.transform = `clientX(${offset}px)`;
+    this.el.compassTrack.style.transform = `translateX(${offset}px)`;
 
-    // Radar Minimap Blitter Engine Loop
+    // Radar minimap blitter engine loop
     const rc = this.el.radarCanvas.width;
-    this.radarCtx.fillStyle = 'rgba(2,1,1,0.85)'; this.radarCtx.fillRect(0,0,rc,rc);
-    
+    this.radarCtx.fillStyle = 'rgba(2,1,1,0.85)'; this.radarCtx.fillRect(0, 0, rc, rc);
+
     let center = rc / 2;
     this.radarCtx.strokeStyle = 'rgba(255,51,51,0.25)'; this.radarCtx.lineWidth = 1;
-    this.radarCtx.beginPath(); this.radarCtx.arc(center, center, center - 5, 0, Math.PI*2); this.radarCtx.stroke();
+    this.radarCtx.beginPath(); this.radarCtx.arc(center, center, center - 5, 0, Math.PI * 2); this.radarCtx.stroke();
 
     // Map units projection drawing loops
     if (!this.maze || !this.player) return;
@@ -1166,13 +1203,13 @@ class Game {
           let cy = center + (y + 0.5 - py) * rScale;
           if (Math.hypot(cx - center, cy - center) < center - 6) {
             this.radarCtx.fillStyle = '#1c0a0a';
-            this.radarCtx.fillRect(cx - rScale/2, cy - rScale/2, rScale, rScale);
+            this.radarCtx.fillRect(cx - rScale / 2, cy - rScale / 2, rScale, rScale);
           }
         }
       }
     }
 
-    // Anomalies on radar radar projection loop
+    // Anomalies on radar projection loop
     this.enemies.forEach(en => {
       if (!en.alive) return;
       let cx = center + (en.x - px) * rScale;
@@ -1183,9 +1220,9 @@ class Game {
       }
     });
 
-    // Draw Player positioning core directional needle blit
+    // Draw player positioning core directional needle blit
     this.radarCtx.fillStyle = '#ffffff';
-    this.radarCtx.beginPath(); this.radarCtx.arc(center, center, 3, 0, Math.PI*2); this.radarCtx.fill();
+    this.radarCtx.beginPath(); this.radarCtx.arc(center, center, 3, 0, Math.PI * 2); this.radarCtx.fill();
   }
 }
 
