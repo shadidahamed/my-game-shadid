@@ -1,18 +1,23 @@
 :root {
-  /* --- WALLS & STRUCTURAL BACKGROUNDS (Deep Blacks) --- */
-  --void: #000000;          /* Absolute Black for background separation */
-  --void-2: #090909;        /* Deep Charcoal for panels and overlays */
-  --wallpaper: #161616;     /* Secondary structural framing color */
+  /* --- REFINED BRIGHTER WALL VARIATIONS --- */
+  --void: #050505;          /* Deep base backdrop */
+  --void-2: #141414;        /* Dark panel overlays */
   
-  /* --- HIGHLIGHTS & ENEMIES (Vibrant Yellows, Oranges, & Reds) --- */
-  --toxic: #FFFF00;         /* Neon Yellow: Main game titles & crucial callouts */
-  --toxic-dim: #FFaa00;     /* Rich Amber Orange: Subtitles & secondary values */
-  --danger: #FF0000;        /* Pure Alert Red: Critical danger, damage, & health */
-  --orange-accent: #FF5500; /* High-visibility Orange: Action items & crosshairs */
+  /* Brighter, highly visible wall structures */
+  --wall-base: #222226;     /* Dark slate gray (bright enough to see geometry/stains) */
+  --wall-border: #ffcc00;   /* Bright neon yellow-gold trim to outline walls clearly */
   
-  /* --- CORE INTERFACE UTILITIES --- */
-  --haze: #FFFFFF;          /* Crisp White for reading static labels */
-  --exit-glow: #33ffcc;     /* Kept green-blue explicitly for clear exits */
+  /* --- BLOOD & HAZARD DETAILS --- */
+  --blood-splatter: #e60000; /* Rich crimson red for stains on the walls */
+  --blood-glow: #ff1111;     /* Luminescent threat red */
+  
+  /* --- INTERFACE UTILITIES --- */
+  --toxic: #FFFF00;         /* Neon Yellow for primary text and titles */
+  --toxic-dim: #FFaa00;     /* Amber Orange for secondary labels */
+  --danger: var(--blood-glow); 
+  --orange-accent: #FF5500; /* Core crosshair accent */
+  --haze: #FFFFFF;          
+  --exit-glow: #33ffcc;     
   --font-mono: "Consolas", "SFMono-Regular", "Menlo", monospace;
   
   /* --- SAFE AREA BOUNDARIES --- */
@@ -39,7 +44,7 @@ html, body {
 
 .hidden { display: none !important; }
 
-/* Fixed menu readability against absolute black background */
+/* Fixed menu readability */
 .overlay-screen {
   position: fixed; inset: 0;
   z-index: 50;
@@ -108,7 +113,6 @@ html, body {
 .section-title.danger { color: var(--danger); text-shadow: 0 0 20px var(--danger); }
 .section-title.success { color: var(--exit-glow); text-shadow: 0 0 20px rgba(51, 255, 204, 0.7); }
 
-/* Brightized buttons with distinct actions */
 .glass-btn, .ghost-btn {
   font-family: var(--font-mono);
   letter-spacing: 0.15em;
@@ -146,9 +150,23 @@ html, body {
   #rotateNotice { display: none !important; }
 }
 
+/* --- BRIGHTER ENGINE WALLS WITH PROCEDURAL BLOOD STAINS --- */
 #gameRoot {
   position: fixed; inset: 0;
-  background: var(--void);
+  
+  /* Brightened up the wall structure so you can see dimensions */
+  background-color: var(--wall-base); 
+  
+  /* Procedural CSS Gradients simulating multi-layered deep crimson blood splatters on walls */
+  background-image: 
+    radial-gradient(circle at 20% 40%, var(--blood-splatter) 0px, rgba(136, 0, 0, 0.6) 8px, transparent 40px),
+    radial-gradient(circle at 75% 25%, var(--blood-splatter) 0px, rgba(170, 0, 0, 0.8) 15px, transparent 60px),
+    radial-gradient(circle at 40% 80%, rgba(90, 0, 0, 0.9) 0px, var(--blood-splatter) 10px, transparent 70px),
+    linear-gradient(135deg, rgba(230, 0, 0, 0.15) 25%, transparent 25%);
+  
+  /* Emphasized neon outlines around map boundaries */
+  border: 4px solid var(--wall-border);
+  box-shadow: inset 0 0 60px rgba(255, 204, 0, 0.4); 
   overflow: hidden;
 }
 
@@ -160,7 +178,7 @@ html, body {
 
 #vignette {
   position: absolute; inset: 0; pointer-events: none; z-index: 5;
-  background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.96) 95%, #000 100%);
+  background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.85) 95%, #000 100%);
 }
 #scanlines {
   position: absolute; inset: 0; pointer-events: none; z-index: 6;
@@ -169,7 +187,7 @@ html, body {
 }
 #flashOverlay {
   position: absolute; inset: 0; pointer-events: none; z-index: 7;
-  background: var(--danger);
+  background: var(--blood-glow);
   opacity: 0;
 }
 
