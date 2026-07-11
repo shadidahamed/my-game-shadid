@@ -1,3 +1,4 @@
+ 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,117 +7,64 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#030201">
-<title>NO EXIT :: Abyssal Labyrinth</title>
+<meta name="theme-color" content="#0a0906">
+<title>NO EXIT :: Backrooms Maze</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div id="platformPopup" class="overlay-screen">
-  <div class="menu-flicker">
-    <h1 class="game-title">SELECT PLATFORM</h1>
-    <p class="game-subtitle">optimize your survival framework</p>
-  </div>
-  <div class="menu-panel">
-    <button id="choosePcBtn" class="glass-btn wide-btn">PC MODE (KEYBOARD & MOUSE)</button>
-    <button id="chooseMobileBtn" class="glass-btn wide-btn">MOBILE MODE (AUTO-FIRE & SENSOR)</button>
-  </div>
-</div>
-
-<div id="rotateNotice" class="overlay-screen hidden">
+ 
+<!-- Rotate device notice -->
+<div id="rotateNotice" class="overlay-screen">
   <div class="rotate-icon">&#8635;</div>
-  <p class="rotate-text">ROTATE DEVICE<br><span>Landscape orientation required</span></p>
+  <p class="rotate-text">ROTATE DEVICE<br><span>this level requires landscape orientation</span></p>
 </div>
-
-<div id="menuScreen" class="overlay-screen hidden">
+ 
+<!-- Main Menu -->
+<div id="menuScreen" class="overlay-screen">
   <div class="menu-flicker">
     <h1 class="game-title">NO&nbsp;EXIT</h1>
-    <p class="game-subtitle">procedural cyber-abyss construct</p>
+    <p class="game-subtitle">there is always another hallway</p>
   </div>
   <div class="menu-panel">
-    <div class="menu-row"><span class="menu-key">SECTOR ID</span><span class="menu-val" id="seedDisplay">------</span></div>
-    <button id="startBtn" class="glass-btn wide-btn">INITIALIZE ENTER</button>
-    <button id="regenBtn" class="ghost-btn wide-btn">MUTATE SECTOR</button>
+    <div class="menu-row"><span class="menu-key">SECTOR</span><span class="menu-val" id="seedDisplay">------</span></div>
+    <button id="startBtn" class="glass-btn wide-btn">ENTER</button>
+    <button id="regenBtn" class="ghost-btn wide-btn">NEW SECTOR</button>
   </div>
-  <p class="menu-footnote" id="controlInstructions">Loading controls...</p>
+  <p class="menu-footnote">tap ENTER &middot; use the joysticks to move &amp; look &middot; find the exit before something finds you</p>
 </div>
-
+ 
+<!-- Pause Screen -->
 <div id="pauseScreen" class="overlay-screen hidden">
-  <h2 class="section-title">STASIS MODE</h2>
+  <h2 class="section-title">PAUSED</h2>
   <div class="menu-panel">
-    <button id="resumeBtn" class="glass-btn wide-btn">RESUME CONSTRUCT</button>
-    <button id="restartFromPauseBtn" class="ghost-btn wide-btn">REBOOT CURRENT SECTOR</button>
-    <button id="quitBtn" class="ghost-btn wide-btn">ABORT SECTOR</button>
+    <button id="resumeBtn" class="glass-btn wide-btn">RESUME</button>
+    <button id="restartFromPauseBtn" class="ghost-btn wide-btn">RESTART SECTOR</button>
+    <button id="quitBtn" class="ghost-btn wide-btn">QUIT TO MENU</button>
   </div>
 </div>
-
+ 
+<!-- Game Over Screen -->
 <div id="gameOverScreen" class="overlay-screen hidden">
-  <h2 class="section-title danger">CONSTRUCT TERMINATED :: VITAL SIGNS ZERO</h2>
+  <h2 class="section-title danger">YOU DID NOT MAKE IT OUT</h2>
   <div class="menu-panel">
-    <div class="menu-row"><span class="menu-key">DEPTH LAYER</span><span class="menu-val" id="goLevel">1</span></div>
-    <div class="menu-row"><span class="menu-key">ANOMALIES PURGED</span><span class="menu-val" id="goKills">0</span></div>
-    <div class="menu-row"><span class="menu-key">SURVIVAL RUNTIME</span><span class="menu-val" id="goTime">0:00</span></div>
-    <div class="menu-row total"><span class="menu-key">CORE SCORE</span><span class="menu-val" id="goScore">0</span></div>
-    <button id="retryBtn" class="glass-btn wide-btn">GENERATE NEW CORE SECTOR</button>
-    <button id="menuFromGoBtn" class="ghost-btn wide-btn">RETURN TO CORE ENGINE</button>
+    <div class="menu-row"><span class="menu-key">LEVEL REACHED</span><span class="menu-val" id="goLevel">1</span></div>
+    <div class="menu-row"><span class="menu-key">ENTITIES CLEARED</span><span class="menu-val" id="goKills">0</span></div>
+    <div class="menu-row"><span class="menu-key">TIME SURVIVED</span><span class="menu-val" id="goTime">0:00</span></div>
+    <div class="menu-row total"><span class="menu-key">SCORE</span><span class="menu-val" id="goScore">0</span></div>
+    <button id="retryBtn" class="glass-btn wide-btn">TRY A NEW SECTOR</button>
+    <button id="menuFromGoBtn" class="ghost-btn wide-btn">MAIN MENU</button>
   </div>
 </div>
-
+ 
+<!-- Victory Screen -->
 <div id="victoryScreen" class="overlay-screen hidden">
-  <h2 class="section-title success">THRESHOLD ESCAPE VALIDATED</h2>
+  <h2 class="section-title success">YOU FOUND THE EXIT</h2>
   <div class="menu-panel">
-    <div class="menu-row"><span class="menu-key">ANOMALIES PURGED</span><span class="menu-val" id="vKills">0</span></div>
-    <div class="menu-row"><span class="menu-key">ESCAPE RUNTIME</span><span class="menu-val" id="vTime">0:00</span></div>
-    <div class="menu-row total"><span class="menu-key">CORE SCORE</span><span class="menu-val" id="vScore">0</span></div>
-    <button id="playAgainBtn" class="glass-btn wide-btn">DESCEND TO NEXT ABYSS LAYER</button>
-    <button id="menuFromVBtn" class="ghost-btn wide-btn">TERMINATE MATRIX</button>
-  </div>
-</div>
-
-<div id="gameRoot" class="hidden">
-  <canvas id="viewCanvas"></canvas>
-  <div id="vignette"></div>
-  <div id="scanlines"></div>
-  <div id="flashOverlay"></div>
- 
-  <div id="hud">
-    <div id="healthPanel" class="hud-panel">
-      <div class="hud-label">VITALS BIOMATRIX</div>
-      <div class="bar-track"><div id="healthFill" class="bar-fill"></div></div>
-      <div id="healthNum" class="hud-mini">100</div>
-    </div>
- 
-    <div id="centerPanel" class="hud-panel">
-      <div id="levelLabel" class="hud-label lg">LAYER 1</div>
-      <div id="compassStrip"><div id="compassTrack"></div><div class="compass-marker"></div></div>
-    </div>
- 
-    <div id="radarPanel" class="hud-panel">
-      <canvas id="radarCanvas" width="140" height="140"></canvas>
-      <div id="scoreTag">DATA CORRELATION <span id="scoreNum">0</span></div>
-    </div>
- 
-    <button id="pauseBtn" aria-label="Pause">II</button>
- 
-    <div id="crosshair"><span></span><span></span></div>
-    <div id="hitMarker"></div>
-    <div id="damageDirIndicator"></div>
-    <div id="objectiveToast"></div>
-  </div>
- 
-  <div id="touchLayer">
-    <div id="moveZone" class="joy-zone">
-      <div class="joy-base"><div class="joy-stick" id="moveStick"></div></div>
-    </div>
-    <div id="lookZone" class="joy-zone">
-      <div class="joy-base"><div class="joy-stick" id="lookStick"></div></div>
-    </div>
-    <button id="runBtn" class="action-btn small-btn">OVERDRIVE</button>
-    <button id="jumpBtn" class="action-btn small-btn">ELEVATE</button>
-    <button id="fireBtn" class="glass-btn fire-btn">WEAPON</button>
+    <div class="menu-row"><span class="menu-key">ENTITIES CLEARED</span><span class="menu-val" id="vKills">0</span></div>
+    <div class="menu-row"><span class="menu-key">TIME SURVIVED</span><span class="menu-val" id="vTime">0:00</span></div>
+    <div class="menu-row total"><span class="menu-key">SCORE</span><span class="menu-val" id="vScore">0</span></div>
+    <button id="playAgainBtn" class="glass-btn wide-btn">ENTER A NEW SECTOR</button>
+    <button id="menuFromVBtn" class="ghost-btn wide-btn">MAIN MENU</button>
   </div>
 </div>
  
-<script src="game.js"></script>
-</body>
-</html>
